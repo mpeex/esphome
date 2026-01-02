@@ -444,18 +444,19 @@ void WaveshareEPaperTypeA::initialize() {
       // More models can be added here to enable deep sleep if eligible
       case WAVESHARE_EPAPER_1_54_IN:
       case WAVESHARE_EPAPER_1_54_IN_V2:
+      case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
         this->deep_sleep_between_updates_ = true;
         ESP_LOGI(TAG, "Set the display to deep sleep");
         this->deep_sleep();
         break;
-      case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       default:
         break;
     }
   }
 }
 void WaveshareEPaperTypeA::init_display_() {
-  if (this->model_ == TTGO_EPAPER_2_13_IN_B74 || this->model_ == WAVESHARE_EPAPER_2_13_IN_V2 ||
+  if (this->model_ == TTGO_EPAPER_2_13_IN_B74 || 
+      this->model_ == WAVESHARE_EPAPER_2_13_IN_V2 ||
       this->model_ == WEMOS_EPAPER_2_13_IN_SSD1680_BWR) {
     if (this->reset_pin_ != nullptr) {
       this->reset_pin_->digital_write(false);
@@ -537,7 +538,7 @@ void WaveshareEPaperTypeA::dump_config() {
       ESP_LOGCONFIG(TAG, "  Model: 2.13in (TTGO B74)");
       break;
     case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
-      ESP_LOGCONFIG(TAG, "  Model: 2.13in (Wemos SSD1680 BWR)");
+      ESP_LOGCONFIG(TAG, "  Model: 2.13in (WEMOS SSD1680 BWR)");
       break;
     case TTGO_EPAPER_2_13_IN_B1:
       ESP_LOGCONFIG(TAG, "  Model: 2.13in (TTGO B1)");
