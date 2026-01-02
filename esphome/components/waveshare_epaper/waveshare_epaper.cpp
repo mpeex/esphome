@@ -821,6 +821,7 @@ uint32_t WaveshareEPaperTypeA::idle_timeout_() {
     case WAVESHARE_EPAPER_1_54_IN_V2:
     case WAVESHARE_EPAPER_2_13_IN_V2:
     case TTGO_EPAPER_2_13_IN_B1:
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       return 2500;
     default:
       return WaveshareEPaperBase::idle_timeout_();
