@@ -312,6 +312,7 @@ void HOT WaveshareEPaper::draw_absolute_pixel_internal(int x, int y, Color color
     this->buffer_[pos] &= ~(0x80 >> subpos);
   }
 }
+display::DisplayType WaveshareEPaper::get_display_type() { return display::DisplayType::DISPLAY_TYPE_BINARY; }
 
 uint32_t WaveshareEPaper::get_buffer_length_() {
   return this->get_width_controller() * this->get_height_internal() / 8u;
@@ -391,6 +392,48 @@ void WaveshareEPaperBase::on_safe_shutdown() { this->deep_sleep(); }
 //                          Type A
 // ========================================================
 
+display::DisplayType WaveshareEPaperTypeA::get_display_type() {
+  if (this->model_ == WEMOS_EPAPER_2_13_IN_SSD1680_BWR)
+    return display::DisplayType::DISPLAY_TYPE_COLOR;
+
+  return WaveshareEPaper::get_display_type();
+}
+uint32_t WaveshareEPaperTypeA::get_buffer_length_() {
+  if (this->model_ == WEMOS_EPAPER_2_13_IN_SSD1680_BWR)
+    return this->get_width_controller() * this->get_height_internal() / 4u;
+
+  return WaveshareEPaper::get_buffer_length_();
+}
+
+void HOT WaveshareEPaperTypeA::draw_absolute_pixel_internal(int x, int y, Color color) {
+  if (x >= this->get_width_internal() || y >= this->get_height_internal() || x < 0 || y < 0)
+    return;
+
+  const uint32_t pos = (x + y * this->get_width_controller()) / 8u;
+  const uint8_t subpos = x & 0x07;
+  // flip logic
+  if (!color.is_on()) {
+    this->buffer_[pos] |= 0x80 >> subpos;
+  } else {
+    this->buffer_[pos] &= ~(0x80 >> subpos);
+  }
+
+  if (this->model_ == WEMOS_EPAPER_2_13_IN_SSD1680_BWR) {
+    const uint32_t buf_half_len = this->get_buffer_length_() / 2u;
+    // draw red pixels only, if the color contains red only
+    if (((color.red > 0) && (color.green == 0) && (color.blue == 0))) {
+      this->buffer_[pos + buf_half_len] |= 0x80 >> subpos;
+    } else {
+      this->buffer_[pos + buf_half_len] &= ~(0x80 >> subpos);
+    }
+  }
+}
+void WaveshareEPaperTypeA::fill(Color color) {
+  if (this->model_ == WEMOS_EPAPER_2_13_IN_SSD1680_BWR)
+    this->filled_rectangle(0, 0, this->get_width(), this->get_height(), color);
+  else
+    WaveshareEPaper::fill(color);
+}
 void WaveshareEPaperTypeA::initialize() {
   // Achieve display intialization
   this->init_display_();
@@ -405,13 +448,15 @@ void WaveshareEPaperTypeA::initialize() {
         ESP_LOGI(TAG, "Set the display to deep sleep");
         this->deep_sleep();
         break;
+      case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       default:
         break;
     }
   }
 }
 void WaveshareEPaperTypeA::init_display_() {
-  if (this->model_ == TTGO_EPAPER_2_13_IN_B74 || this->model_ == WAVESHARE_EPAPER_2_13_IN_V2) {
+  if (this->model_ == TTGO_EPAPER_2_13_IN_B74 || this->model_ == WAVESHARE_EPAPER_2_13_IN_V2 ||
+      this->model_ == WEMOS_EPAPER_2_13_IN_SSD1680_BWR) {
     if (this->reset_pin_ != nullptr) {
       this->reset_pin_->digital_write(false);
       delay(10);
@@ -456,6 +501,7 @@ void WaveshareEPaperTypeA::init_display_() {
       break;
     case TTGO_EPAPER_2_13_IN_B74:
     case WAVESHARE_EPAPER_2_9_IN_V2:
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       this->data(0x03);  // from top left to bottom right
       // RAM content option for Display Update
       this->command(0x21);
@@ -489,6 +535,9 @@ void WaveshareEPaperTypeA::dump_config() {
       break;
     case TTGO_EPAPER_2_13_IN_B74:
       ESP_LOGCONFIG(TAG, "  Model: 2.13in (TTGO B74)");
+      break;
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
+      ESP_LOGCONFIG(TAG, "  Model: 2.13in (Wemos SSD1680 BWR)");
       break;
     case TTGO_EPAPER_2_13_IN_B1:
       ESP_LOGCONFIG(TAG, "  Model: 2.13in (TTGO B1)");
@@ -534,6 +583,7 @@ void HOT WaveshareEPaperTypeA::display() {
           this->write_lut_(full_update ? FULL_UPDATE_LUT_TTGO_B73 : PARTIAL_UPDATE_LUT_TTGO_B73, LUT_SIZE_TTGO_B73);
           break;
         case TTGO_EPAPER_2_13_IN_B74:
+        case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
           // there is no LUT
           break;
         case TTGO_EPAPER_2_13_IN_B1:
@@ -570,6 +620,7 @@ void HOT WaveshareEPaperTypeA::display() {
   // Border waveform
   switch (this->model_) {
     case TTGO_EPAPER_2_13_IN_B74:
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       this->command(0x3C);
       this->data(full_update ? 0x05 : 0x80);
       break;
@@ -644,6 +695,9 @@ void HOT WaveshareEPaperTypeA::display() {
       }
       break;
     }
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
+      this->write_array(this->buffer_, this->get_buffer_length_() / 2u);
+      break;
     default:
       this->write_array(this->buffer_, this->get_buffer_length_());
   }
@@ -657,12 +711,21 @@ void HOT WaveshareEPaperTypeA::display() {
     this->end_data_();
   }
 
+  if (this->model_ == WEMOS_EPAPER_2_13_IN_SSD1680_BWR) {
+    uint32_t buflen = this->get_buffer_length_() / 2u;
+    this->command(0x26);
+    this->start_data_();
+    this->write_array(this->buffer_ + buflen, buflen);
+    this->end_data_();
+  }
+
   // COMMAND DISPLAY UPDATE CONTROL 2
   this->command(0x22);
   switch (this->model_) {
     case WAVESHARE_EPAPER_2_9_IN_V2:
     case WAVESHARE_EPAPER_1_54_IN_V2:
     case TTGO_EPAPER_2_13_IN_B74:
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       this->data(full_update ? 0xF7 : 0xFF);
       break;
     case TTGO_EPAPER_2_13_IN_B73:
@@ -699,6 +762,7 @@ int WaveshareEPaperTypeA::get_width_internal() {
     case TTGO_EPAPER_2_13_IN_B73:
     case TTGO_EPAPER_2_13_IN_B74:
     case TTGO_EPAPER_2_13_IN_B1:
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       return 122;
     case WAVESHARE_EPAPER_2_9_IN:
     case WAVESHARE_EPAPER_2_9_IN_V2:
@@ -715,6 +779,7 @@ int WaveshareEPaperTypeA::get_width_controller() {
     case TTGO_EPAPER_2_13_IN_B73:
     case TTGO_EPAPER_2_13_IN_B74:
     case TTGO_EPAPER_2_13_IN_B1:
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       return 128;
     default:
       return this->get_width_internal();
@@ -731,6 +796,7 @@ int WaveshareEPaperTypeA::get_height_internal() {
     case TTGO_EPAPER_2_13_IN_B73:
     case TTGO_EPAPER_2_13_IN_B74:
     case TTGO_EPAPER_2_13_IN_B1:
+    case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
       return 250;
     case WAVESHARE_EPAPER_2_9_IN:
     case WAVESHARE_EPAPER_2_9_IN_V2:

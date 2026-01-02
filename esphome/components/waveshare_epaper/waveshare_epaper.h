@@ -65,7 +65,7 @@ class WaveshareEPaper : public WaveshareEPaperBase {
  public:
   void fill(Color color) override;
 
-  display::DisplayType get_display_type() override { return display::DisplayType::DISPLAY_TYPE_BINARY; }
+  display::DisplayType get_display_type() override;
 
  protected:
   void draw_absolute_pixel_internal(int x, int y, Color color) override;
@@ -114,6 +114,7 @@ enum WaveshareEPaperTypeAModel {
   TTGO_EPAPER_2_13_IN_B73,
   TTGO_EPAPER_2_13_IN_B1,
   TTGO_EPAPER_2_13_IN_B74,
+  WEMOS_EPAPER_2_13_IN_SSD1680_BWR,
 };
 
 class WaveshareEPaperTypeA : public WaveshareEPaper {
@@ -124,7 +125,11 @@ class WaveshareEPaperTypeA : public WaveshareEPaper {
 
   void dump_config() override;
 
+  display::DisplayType get_display_type() override;
+
   void display() override;
+
+  void fill(Color color) override;
 
   void deep_sleep() override {
     switch (this->model_) {
@@ -133,6 +138,7 @@ class WaveshareEPaperTypeA : public WaveshareEPaper {
       case WAVESHARE_EPAPER_1_54_IN_V2:
       case WAVESHARE_EPAPER_2_9_IN_V2:
       case WAVESHARE_EPAPER_2_13_IN_V2:
+      case WEMOS_EPAPER_2_13_IN_SSD1680_BWR:
         // COMMAND DEEP SLEEP MODE
         this->command(0x10);
         this->data(0x01);
@@ -163,6 +169,10 @@ class WaveshareEPaperTypeA : public WaveshareEPaper {
 
   int get_width_controller() override;
 
+  uint32_t get_buffer_length_() override;
+
+  void draw_absolute_pixel_internal(int x, int y, Color color) override;
+
   uint32_t full_update_every_{30};
   uint32_t at_update_{0};
   WaveshareEPaperTypeAModel model_;
@@ -182,6 +192,7 @@ enum WaveshareEPaperTypeBModel {
   WAVESHARE_EPAPER_7_5_INV2,
   WAVESHARE_EPAPER_7_5_IN_B_V2,
   WAVESHARE_EPAPER_13_3_IN_K,
+  WAVESHARE_EPAPER_2_13_IN_BWR,
 };
 
 class WaveshareEPaper1P54InBV2 : public WaveshareEPaperBWR {
